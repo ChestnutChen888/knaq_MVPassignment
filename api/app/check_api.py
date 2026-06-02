@@ -24,6 +24,9 @@ def main() -> None:
     unauthorized = client.get("/alerts")
     check("missing token returns 401", unauthorized.status_code == 401, f"status={unauthorized.status_code}")
 
+    invalid_token = client.get("/alerts", headers={"Authorization": "Bearer invalid-token"})
+    check("invalid token returns 401", invalid_token.status_code == 401, f"status={invalid_token.status_code}")
+
     alerts_response = client.get("/alerts", headers=HEADERS)
     check("GET /alerts returns 200", alerts_response.status_code == 200, f"status={alerts_response.status_code}")
     alerts = alerts_response.json()
@@ -35,6 +38,17 @@ def main() -> None:
     check("GET /alerts/{id} returns 200", detail_response.status_code == 200, f"status={detail_response.status_code}")
     detail = detail_response.json()
     check("alert detail has timeline", len(detail["timeline"]) > 0, f"timeline={len(detail['timeline'])}")
+
+    resolve_new = client.post(
+        f"/alerts/{first_alert['id']}/resolve",
+        headers=HEADERS,
+        json={
+            "resolution_type": "fixed",
+            "root_cause": "Should not be allowed before acknowledge.",
+            "action_taken": "Attempted direct resolve.",
+        },
+    )
+    check("resolve new alert returns 409", resolve_new.status_code == 409, f"status={resolve_new.status_code}")
 
     devices_response = client.get("/devices", headers=HEADERS)
     check("GET /devices returns 200", devices_response.status_code == 200, f"status={devices_response.status_code}")
@@ -116,6 +130,13 @@ def main() -> None:
         json={"note": "Smoke test note after resolution."},
     )
     check("POST /alerts/{id}/notes returns 200", note_response.status_code == 200, f"status={note_response.status_code}")
+    noted = note_response.json()
+    note_entries = [
+        entry
+        for entry in noted["timeline"]
+        if entry["action"] == "note_added" and entry["note"] == "Smoke test note after resolution."
+    ]
+    check("add note appends note_added timeline", len(note_entries) == 1, f"matches={len(note_entries)}")
 
     assign_resolved = client.post(
         f"/alerts/{first_alert['id']}/assign",
