@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -5,6 +7,16 @@ from app.main import app
 
 TOKEN = "token-brookfield-manager"
 HEADERS = {"Authorization": f"Bearer {TOKEN}"}
+OTHER_HEADERS = {"Authorization": "Bearer token-hines-manager"}
+EXPECTED_STATUS_KEYS = {"new", "acknowledged", "resolved", "dismissed"}
+
+
+"""
+Smoke test for the API layer.
+
+This script exercises mutations and therefore changes dev.db. For repeatable
+results, run `python -m app.seed` before `python -m app.check_api`.
+"""
 
 
 def main() -> None:
@@ -31,9 +43,18 @@ def main() -> None:
     check("GET /alerts returns 200", alerts_response.status_code == 200, f"status={alerts_response.status_code}")
     alerts = alerts_response.json()
     check("GET /alerts has items", len(alerts["items"]) > 0, f"items={len(alerts['items'])}")
-    check("GET /alerts summary includes new", "new" in alerts["summary"], f"summary={alerts['summary']}")
+    check(
+        "summary has expected status keys",
+        EXPECTED_STATUS_KEYS.issubset(alerts["summary"].keys()),
+        f"summary={alerts['summary']}",
+    )
 
-    first_alert = alerts["items"][0]
+    new_alert = next((item for item in alerts["items"] if item["status"] == "new"), None)
+    check("has a new alert for workflow test", new_alert is not None)
+    if new_alert is None:
+        raise SystemExit(1)
+
+    first_alert = new_alert
     detail_response = client.get(f"/alerts/{first_alert['id']}", headers=HEADERS)
     check("GET /alerts/{id} returns 200", detail_response.status_code == 200, f"status={detail_response.status_code}")
     detail = detail_response.json()
@@ -49,6 +70,13 @@ def main() -> None:
         },
     )
     check("resolve new alert returns 409", resolve_new.status_code == 409, f"status={resolve_new.status_code}")
+
+    bad_assign = client.post(
+        f"/alerts/{first_alert['id']}/assign",
+        headers=HEADERS,
+        json={"assignee_id": "u3"},
+    )
+    check("assign cross-company user returns 404", bad_assign.status_code == 404, f"status={bad_assign.status_code}")
 
     devices_response = client.get("/devices", headers=HEADERS)
     check("GET /devices returns 200", devices_response.status_code == 200, f"status={devices_response.status_code}")
@@ -82,7 +110,8 @@ def main() -> None:
     )
     if readings["items"]:
         sample = readings["items"][0]
-        check("reading timestamp is local ISO", "T" in sample["timestamp"] and sample["timestamp"][-6:-5] in ["+", "-"])
+        parsed_timestamp = datetime.fromisoformat(sample["timestamp"])
+        check("reading timestamp has timezone", parsed_timestamp.tzinfo is not None)
 
     acknowledge_response = client.post(f"/alerts/{first_alert['id']}/acknowledge", headers=HEADERS)
     check(
@@ -147,6 +176,17 @@ def main() -> None:
 
     hines_device = client.get("/devices/ELV-003", headers=HEADERS)
     check("cross-company device returns 404", hines_device.status_code == 404, f"status={hines_device.status_code}")
+
+    other_alerts_response = client.get("/alerts", headers=OTHER_HEADERS)
+    check(
+        "other company GET /alerts returns 200",
+        other_alerts_response.status_code == 200,
+        f"status={other_alerts_response.status_code}",
+    )
+    other_alerts = other_alerts_response.json()["items"]
+    if other_alerts:
+        cross_alert = client.get(f"/alerts/{other_alerts[0]['id']}", headers=HEADERS)
+        check("cross-company alert detail returns 404", cross_alert.status_code == 404, f"status={cross_alert.status_code}")
 
     if failures:
         print()
