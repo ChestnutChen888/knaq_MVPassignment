@@ -5,6 +5,7 @@ import {
   Avatar,
   Box,
   Button,
+  Checkbox,
   Chip,
   Container,
   FormControl,
@@ -61,6 +62,7 @@ export default function AlertQueuePage() {
   const [statusFilter, setStatusFilter] = useState<AlertStatus | "all">("all");
   const [severityFilter, setSeverityFilter] = useState<AlertSeverity[]>([]);
   const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const queryParams = useMemo(
     () => ({
@@ -85,6 +87,10 @@ export default function AlertQueuePage() {
     useAcknowledgeAlertMutation();
 
   const alerts = data?.items ?? [];
+  const selectedNewAlerts = alerts.filter(
+    (alertItem) =>
+      selectedIds.includes(alertItem.id) && alertItem.status === "new",
+  );
   const summary = summaryData?.summary ?? {
     new: 0,
     acknowledged: 0,
@@ -113,6 +119,33 @@ export default function AlertQueuePage() {
     } catch {
       window.alert(
         "Failed to acknowledge alert. The alert may have changed on the server.",
+      );
+    }
+  };
+
+  const toggleSelected = (id: number) => {
+    setSelectedIds((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id],
+    );
+  };
+
+  const clearSelection = () => {
+    setSelectedIds([]);
+  };
+
+  const handleBulkAcknowledge = async () => {
+    try {
+      await Promise.all(
+        selectedNewAlerts.map((alertItem) =>
+          acknowledgeAlert(alertItem.id).unwrap(),
+        ),
+      );
+      clearSelection();
+    } catch {
+      window.alert(
+        "Some alerts could not be acknowledged. Please refresh and try again.",
       );
     }
   };
@@ -221,11 +254,44 @@ export default function AlertQueuePage() {
         )}
 
         {!isLoading && !isError && !isSummaryError && alerts.length > 0 && (
+          <Stack sx={{ gap: 2 }}>
+            {selectedIds.length > 0 && (
+              <Paper sx={{ p: 2 }}>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  sx={{
+                    gap: 2,
+                    alignItems: { xs: "stretch", sm: "center" },
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Typography>
+                    {selectedIds.length} selected / {selectedNewAlerts.length} can
+                    be acknowledged
+                  </Typography>
+
+                  <Stack direction="row" sx={{ gap: 1 }}>
+                    <Button onClick={clearSelection}>Clear</Button>
+                    <Button
+                      variant="contained"
+                      disabled={
+                        selectedNewAlerts.length === 0 || isAcknowledging
+                      }
+                      onClick={handleBulkAcknowledge}
+                    >
+                      Bulk Acknowledge
+                    </Button>
+                  </Stack>
+                </Stack>
+              </Paper>
+            )}
+
           <Paper sx={{ overflow: "hidden" }}>
             <Box component="table" sx={{ width: "100%", borderCollapse: "collapse" }}>
               <Box component="thead" sx={{ bgcolor: "action.hover" }}>
                 <Box component="tr">
                   {[
+                    "Select",
                     "Severity",
                     "Alert",
                     "Device",
@@ -262,6 +328,18 @@ export default function AlertQueuePage() {
                       "&:hover": { bgcolor: "action.hover" },
                     }}
                   >
+                    <Box component="td" sx={{ p: 2 }}>
+                      <Checkbox
+                        checked={selectedIds.includes(alertItem.id)}
+                        onChange={() => toggleSelected(alertItem.id)}
+                        slotProps={{
+                          input: {
+                            "aria-label": `Select alert ${alertItem.id}`,
+                          },
+                        }}
+                      />
+                    </Box>
+
                     <Box component="td" sx={{ p: 2 }}>
                       <Chip
                         size="small"
@@ -355,6 +433,7 @@ export default function AlertQueuePage() {
               </Box>
             </Box>
           </Paper>
+          </Stack>
         )}
       </Stack>
     </Container>
