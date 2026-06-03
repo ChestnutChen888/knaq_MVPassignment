@@ -16,7 +16,14 @@ from app.schemas import (
     AssignAlertRequest,
     ResolveAlertRequest,
 )
-from app.services.alert_service import acknowledge_alert, add_note, assign_alert, resolve_alert
+from app.services.alert_service import (
+    acknowledge_alert,
+    add_note,
+    assign_alert,
+    dismiss_alert,
+    reopen_alert,
+    resolve_alert,
+)
 
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
@@ -125,6 +132,26 @@ def resolve_alert_endpoint(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> AlertDetailResponse:
     alert = resolve_alert(db, alert_id, payload, current_user)
+    return alert_to_detail(db, alert)
+
+
+@router.post("/{alert_id}/dismiss", response_model=AlertDetailResponse)
+def dismiss_alert_endpoint(
+    alert_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> AlertDetailResponse:
+    alert = dismiss_alert(db, alert_id, current_user)
+    return alert_to_detail(db, alert)
+
+
+@router.post("/{alert_id}/reopen", response_model=AlertDetailResponse)
+def reopen_alert_endpoint(
+    alert_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> AlertDetailResponse:
+    alert = reopen_alert(db, alert_id, current_user)
     return alert_to_detail(db, alert)
 
 

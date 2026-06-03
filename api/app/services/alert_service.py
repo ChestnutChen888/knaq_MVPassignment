@@ -120,6 +120,60 @@ def resolve_alert(
     return alert
 
 
+def dismiss_alert(db: Session, alert_id: int, current_user: User) -> Alert:
+    alert = get_company_alert_or_404(db, alert_id, current_user)
+    if alert.status not in {"new", "acknowledged"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only new or acknowledged alerts can be dismissed.",
+        )
+
+    old_status = alert.status
+    alert.status = "dismissed"
+    append_timeline(
+        db=db,
+        alert=alert,
+        timestamp=utc_now(),
+        action="dismissed",
+        user_name=current_user.name,
+        details={"from_status": old_status, "to_status": "dismissed"},
+        note=f"Dismissed from {old_status}.",
+    )
+    db.commit()
+    db.refresh(alert)
+    return alert
+
+
+def reopen_alert(db: Session, alert_id: int, current_user: User) -> Alert:
+    alert = get_company_alert_or_404(db, alert_id, current_user)
+    if alert.status not in {"resolved", "dismissed"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only resolved or dismissed alerts can be reopened.",
+        )
+
+    old_status = alert.status
+    alert.status = "acknowledged"
+    alert.resolved_at_utc = None
+    alert.resolution_type = None
+    alert.resolution_root_cause = None
+    alert.resolution_action_taken = None
+    alert.resolution_preventive_measures = None
+    alert.resolution_time_spent_minutes = None
+    append_timeline(
+        db=db,
+        alert=alert,
+        timestamp=utc_now(),
+        action="reopened",
+        user_name=current_user.name,
+        details={"from_status": old_status, "to_status": "acknowledged"},
+        note=f"Reopened from {old_status}.",
+    )
+    db.commit()
+    db.refresh(alert)
+    return alert
+
+
 def add_note(db: Session, alert_id: int, note: str, current_user: User) -> Alert:
     alert = get_company_alert_or_404(db, alert_id, current_user)
     append_timeline(

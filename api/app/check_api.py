@@ -55,6 +55,51 @@ def main() -> None:
         raise SystemExit(1)
 
     first_alert = new_alert
+    dismiss_candidate = next(
+        (
+            item
+            for item in alerts["items"]
+            if item["status"] == "new" and item["id"] != first_alert["id"]
+        ),
+        None,
+    )
+    check("has a second new alert for dismiss/reopen test", dismiss_candidate is not None)
+
+    if dismiss_candidate is not None:
+        reopen_new = client.post(f"/alerts/{dismiss_candidate['id']}/reopen", headers=HEADERS)
+        check("reopen new alert returns 409", reopen_new.status_code == 409, f"status={reopen_new.status_code}")
+
+        dismiss_new = client.post(f"/alerts/{dismiss_candidate['id']}/dismiss", headers=HEADERS)
+        check("dismiss new alert returns 200", dismiss_new.status_code == 200, f"status={dismiss_new.status_code}")
+        dismissed = dismiss_new.json()
+        check("dismiss changes status", dismissed["status"] == "dismissed", f"status={dismissed['status']}")
+        check(
+            "dismiss appends dismissed timeline",
+            dismissed["timeline"][-1]["action"] == "dismissed",
+            f"last_action={dismissed['timeline'][-1]['action']}",
+        )
+
+        reopen_dismissed = client.post(f"/alerts/{dismiss_candidate['id']}/reopen", headers=HEADERS)
+        check(
+            "reopen dismissed alert returns 200",
+            reopen_dismissed.status_code == 200,
+            f"status={reopen_dismissed.status_code}",
+        )
+        reopened = reopen_dismissed.json()
+        check("reopen changes status to acknowledged", reopened["status"] == "acknowledged", f"status={reopened['status']}")
+        check(
+            "reopen appends reopened timeline",
+            reopened["timeline"][-1]["action"] == "reopened",
+            f"last_action={reopened['timeline'][-1]['action']}",
+        )
+
+        dismiss_acknowledged = client.post(f"/alerts/{dismiss_candidate['id']}/dismiss", headers=HEADERS)
+        check(
+            "dismiss acknowledged alert returns 200",
+            dismiss_acknowledged.status_code == 200,
+            f"status={dismiss_acknowledged.status_code}",
+        )
+
     detail_response = client.get(f"/alerts/{first_alert['id']}", headers=HEADERS)
     check("GET /alerts/{id} returns 200", detail_response.status_code == 200, f"status={detail_response.status_code}")
     detail = detail_response.json()
@@ -191,6 +236,22 @@ def main() -> None:
         json={"assignee_id": "u2"},
     )
     check("assign resolved alert returns 409", assign_resolved.status_code == 409, f"status={assign_resolved.status_code}")
+
+    dismiss_resolved = client.post(f"/alerts/{first_alert['id']}/dismiss", headers=HEADERS)
+    check("dismiss resolved alert returns 409", dismiss_resolved.status_code == 409, f"status={dismiss_resolved.status_code}")
+
+    reopen_resolved = client.post(f"/alerts/{first_alert['id']}/reopen", headers=HEADERS)
+    check("reopen resolved alert returns 200", reopen_resolved.status_code == 200, f"status={reopen_resolved.status_code}")
+    reopened_resolved = reopen_resolved.json()
+    check(
+        "reopen resolved alert changes status to acknowledged",
+        reopened_resolved["status"] == "acknowledged",
+        f"status={reopened_resolved['status']}",
+    )
+    check(
+        "reopen clears active resolution",
+        reopened_resolved["resolution"] is None and reopened_resolved["resolved_at"] is None,
+    )
 
     hines_device = client.get("/devices/ELV-003", headers=HEADERS)
     check("cross-company device returns 404", hines_device.status_code == 404, f"status={hines_device.status_code}")

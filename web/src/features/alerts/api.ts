@@ -97,6 +97,26 @@ export const alertsApi = createApi({
         { type: "Alert", id },
       ],
     }),
+    dismissAlert: builder.mutation<AlertDetail, number>({
+      query: (id) => ({
+        url: `/alerts/${id}/dismiss`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, id) => [
+        "Alerts",
+        { type: "Alert", id },
+      ],
+    }),
+    reopenAlert: builder.mutation<AlertDetail, number>({
+      query: (id) => ({
+        url: `/alerts/${id}/reopen`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, id) => [
+        "Alerts",
+        { type: "Alert", id },
+      ],
+    }),
     addNote: builder.mutation<AlertDetail, { id: number; body: AddNoteRequest }>({
       query: ({ id, body }) => ({
         url: `/alerts/${id}/notes`,
@@ -119,5 +139,7 @@ export const {
   useAcknowledgeAlertMutation,
   useAssignAlertMutation,
   useResolveAlertMutation,
+  useDismissAlertMutation,
+  useReopenAlertMutation,
   useAddNoteMutation,
 } = alertsApi;

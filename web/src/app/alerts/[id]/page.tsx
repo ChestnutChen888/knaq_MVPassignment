@@ -34,7 +34,9 @@ import { ResolveAlertDialog } from "@/features/alerts/components/ResolveAlertDia
 import {
   useAcknowledgeAlertMutation,
   useAddNoteMutation,
+  useDismissAlertMutation,
   useGetAlertQuery,
+  useReopenAlertMutation,
 } from "@/features/alerts/api";
 import type { AlertSeverity } from "@/features/alerts/types";
 
@@ -57,6 +59,56 @@ function formatAction(action: string): string {
   return action.replaceAll("_", " ");
 }
 
+function formatTimelineDetails(
+  action: string,
+  details: Record<string, unknown> | null | undefined,
+): string | null {
+  if (!details) return null;
+
+  if (action === "created") {
+    return "Alert created from device alert message.";
+  }
+
+  if (action === "recovered") {
+    return "Device reported recovery for this alert condition.";
+  }
+
+  if (action === "acknowledged") {
+    return "Alert moved from New to Acknowledged.";
+  }
+
+  if (action === "assigned") {
+    const fromAssignee =
+      typeof details.from_assignee === "string" ? details.from_assignee : null;
+    const toAssignee =
+      typeof details.to_assignee === "string" ? details.to_assignee : null;
+
+    if (fromAssignee && toAssignee) {
+      return `Reassigned from ${fromAssignee} to ${toAssignee}.`;
+    }
+
+    if (toAssignee) {
+      return `Assigned to ${toAssignee}.`;
+    }
+
+    return "Assignment updated.";
+  }
+
+  if (action === "resolved") {
+    return "Alert resolved with resolution details.";
+  }
+
+  if (action === "dismissed") {
+    return "Alert dismissed from active triage.";
+  }
+
+  if (action === "reopened") {
+    return "Alert reopened for further triage.";
+  }
+
+  return null;
+}
+
 export default function AlertDetailPage() {
   const params = useParams<{ id: string }>();
   const alertId = Number(params.id);
@@ -75,6 +127,9 @@ export default function AlertDetailPage() {
 
   const [acknowledgeAlert, { isLoading: isAcknowledging }] =
     useAcknowledgeAlertMutation();
+  const [dismissAlert, { isLoading: isDismissing }] =
+    useDismissAlertMutation();
+  const [reopenAlert, { isLoading: isReopening }] = useReopenAlertMutation();
   const [addNote, { isLoading: isAddingNote }] = useAddNoteMutation();
 
   const noteForm = useFormik({
@@ -112,6 +167,26 @@ export default function AlertDetailPage() {
       window.alert(
         "Failed to acknowledge alert. It may have already changed on the server.",
       );
+    }
+  }
+
+  async function handleDismiss() {
+    if (!alertDetail) return;
+
+    try {
+      await dismissAlert(alertDetail.id).unwrap();
+    } catch {
+      window.alert("Failed to dismiss alert. It may have changed on the server.");
+    }
+  }
+
+  async function handleReopen() {
+    if (!alertDetail) return;
+
+    try {
+      await reopenAlert(alertDetail.id).unwrap();
+    } catch {
+      window.alert("Failed to reopen alert. It may have changed on the server.");
     }
   }
 
@@ -247,6 +322,14 @@ export default function AlertDetailPage() {
                       >
                         Assign
                       </Button>
+                      <Button
+                        variant="outlined"
+                        color="warning"
+                        disabled={isDismissing}
+                        onClick={handleDismiss}
+                      >
+                        Dismiss
+                      </Button>
                     </>
                   )}
 
@@ -264,12 +347,29 @@ export default function AlertDetailPage() {
                       >
                         Assign
                       </Button>
+                      <Button
+                        variant="outlined"
+                        color="warning"
+                        disabled={isDismissing}
+                        onClick={handleDismiss}
+                      >
+                        Dismiss
+                      </Button>
                     </>
                   )}
 
                   {(alertDetail.status === "resolved" ||
                     alertDetail.status === "dismissed") && (
-                    <Chip label="Read-only" variant="outlined" />
+                    <>
+                      <Chip label="Read-only" variant="outlined" />
+                      <Button
+                        variant="outlined"
+                        disabled={isReopening}
+                        onClick={handleReopen}
+                      >
+                        Reopen
+                      </Button>
+                    </>
                   )}
                 </Stack>
               </Stack>
@@ -452,52 +552,68 @@ export default function AlertDetailPage() {
                 </Stack>
 
                 <Stack sx={{ gap: 2 }}>
-                  {alertDetail.timeline.map((item, index) => (
-                    <Box key={item.id}>
-                      <Stack direction="row" sx={{ gap: 2 }}>
-                        <Avatar sx={{ width: 32, height: 32 }}>
-                          {item.action === "resolved" ? (
-                            <CheckCircleIcon fontSize="small" />
-                          ) : (
-                            index + 1
-                          )}
-                        </Avatar>
+                  {alertDetail.timeline.map((item, index) => {
+                    const detailText = formatTimelineDetails(
+                      item.action,
+                      item.details,
+                    );
 
-                        <Box sx={{ flex: 1 }}>
-                          <Typography
-                            sx={{
-                              fontWeight: 700,
-                              textTransform: "capitalize",
-                            }}
-                          >
-                            {formatAction(item.action)}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {item.user_name} /{" "}
-                            {dayjs(item.timestamp).format("MMM D, YYYY HH:mm")}
-                          </Typography>
+                    return (
+                      <Box key={item.id}>
+                        <Stack direction="row" sx={{ gap: 2 }}>
+                          <Avatar sx={{ width: 32, height: 32 }}>
+                            {item.action === "resolved" ? (
+                              <CheckCircleIcon fontSize="small" />
+                            ) : (
+                              index + 1
+                            )}
+                          </Avatar>
 
-                          {item.note && (
-                            <Typography sx={{ mt: 1 }}>{item.note}</Typography>
-                          )}
-
-                          {item.details && (
+                          <Box sx={{ flex: 1 }}>
                             <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              sx={{ display: "block", mt: 1 }}
+                              sx={{
+                                fontWeight: 700,
+                                textTransform: "capitalize",
+                              }}
                             >
-                              {JSON.stringify(item.details)}
+                              {formatAction(item.action)}
                             </Typography>
-                          )}
-                        </Box>
-                      </Stack>
+                            <Typography variant="body2" color="text.secondary">
+                              {item.user_name} /{" "}
+                              {dayjs(item.timestamp).format("MMM D, YYYY HH:mm")}
+                            </Typography>
 
-                      {index < alertDetail.timeline.length - 1 && (
-                        <Divider sx={{ my: 2, ml: 2 }} />
-                      )}
-                    </Box>
-                  ))}
+                            {detailText && (
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mt: 1 }}
+                              >
+                                {detailText}
+                              </Typography>
+                            )}
+
+                            {item.note && (
+                              <Typography
+                                sx={{
+                                  mt: 1,
+                                  p: 1.5,
+                                  bgcolor: "action.hover",
+                                  borderRadius: 1,
+                                }}
+                              >
+                                {item.note}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Stack>
+
+                        {index < alertDetail.timeline.length - 1 && (
+                          <Divider sx={{ my: 2, ml: 2 }} />
+                        )}
+                      </Box>
+                    );
+                  })}
                 </Stack>
               </CardContent>
             </Card>
