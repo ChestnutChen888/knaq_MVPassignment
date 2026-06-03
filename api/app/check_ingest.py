@@ -3,6 +3,8 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from app.utils import build_dedupe_key
+
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DB_PATH = ROOT_DIR / "dev.db"
@@ -42,6 +44,7 @@ def main() -> None:
     check_message_types(runner)
     check_invalid_messages(runner)
     check_duplicates(runner)
+    check_dedupe_input_order(runner)
     check_readings(runner)
     check_threshold_logic(runner)
     check_alert_sources(runner)
@@ -134,6 +137,33 @@ def check_duplicates(runner: CheckRunner) -> None:
         """
     )
     runner.pass_fail("no duplicate dedupe_key rows", len(duplicates) == 0, f"duplicates={len(duplicates)}")
+    print()
+
+
+def check_dedupe_input_order(runner: CheckRunner) -> None:
+    print("Dedupe canonicalization")
+    original = {
+        "device_id": "CMP-001",
+        "message_type": "reading",
+        "timestamp": 1770732937000,
+        "inputs": [
+            {"input_name": "temperature", "input_value": 100},
+            {"input_name": "current", "input_value": 50},
+        ],
+    }
+    reordered = {
+        "timestamp": 1770732937000,
+        "message_type": "reading",
+        "device_id": "CMP-001",
+        "inputs": [
+            {"input_value": 50, "input_name": "current"},
+            {"input_value": 100, "input_name": "temperature"},
+        ],
+    }
+    runner.pass_fail(
+        "dedupe key ignores input ordering",
+        build_dedupe_key(original) == build_dedupe_key(reordered),
+    )
     print()
 
 
