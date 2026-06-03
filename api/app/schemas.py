@@ -50,6 +50,8 @@ class AlertListResponse(BaseModel):
     items: list[AlertListItem]
     total: int
     summary: dict[str, int]
+    page: int = 1
+    page_size: int = 20
 
 
 class TimelineEntryResponse(BaseModel):

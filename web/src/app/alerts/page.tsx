@@ -15,6 +15,7 @@ import {
   Paper,
   Select,
   Stack,
+  TablePagination,
   TextField,
   Typography,
 } from "@mui/material";
@@ -63,14 +64,18 @@ export default function AlertQueuePage() {
   const [severityFilter, setSeverityFilter] = useState<AlertSeverity[]>([]);
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
 
   const queryParams = useMemo(
     () => ({
       ...(statusFilter !== "all" ? { status: [statusFilter] } : {}),
       ...(severityFilter.length > 0 ? { severity: severityFilter } : {}),
       ...(search.trim() ? { q: search.trim() } : {}),
+      page: page + 1,
+      page_size: pageSize,
     }),
-    [statusFilter, severityFilter, search],
+    [statusFilter, severityFilter, search, page, pageSize],
   );
 
   const {
@@ -104,6 +109,11 @@ export default function AlertQueuePage() {
     refetchSummary();
   };
 
+  const resetPagination = () => {
+    setPage(0);
+    clearSelection();
+  };
+
   const handleSeverityChange = (event: SelectChangeEvent<AlertSeverity[]>) => {
     const value = event.target.value;
     setSeverityFilter(
@@ -111,6 +121,7 @@ export default function AlertQueuePage() {
         ? (value.split(",").filter(Boolean) as AlertSeverity[])
         : value,
     );
+    resetPagination();
   };
 
   const handleAcknowledge = async (alertId: number) => {
@@ -184,7 +195,10 @@ export default function AlertQueuePage() {
                   label={`${status === "all" ? "All" : status} (${count})`}
                   color={statusFilter === status ? "primary" : "default"}
                   variant={statusFilter === status ? "filled" : "outlined"}
-                  onClick={() => setStatusFilter(status)}
+                  onClick={() => {
+                    setStatusFilter(status);
+                    resetPagination();
+                  }}
                   sx={{ textTransform: "capitalize" }}
                 />
               );
@@ -201,7 +215,10 @@ export default function AlertQueuePage() {
             <TextField
               label="Search by alert, device, or type"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                resetPagination();
+              }}
               fullWidth
             />
 
@@ -432,6 +449,23 @@ export default function AlertQueuePage() {
                 ))}
               </Box>
             </Box>
+
+            <TablePagination
+              component="div"
+              count={data?.total ?? 0}
+              page={page}
+              rowsPerPage={pageSize}
+              rowsPerPageOptions={[5, 10, 20, 50]}
+              onPageChange={(_event, nextPage) => {
+                setPage(nextPage);
+                clearSelection();
+              }}
+              onRowsPerPageChange={(event) => {
+                setPageSize(Number(event.target.value));
+                setPage(0);
+                clearSelection();
+              }}
+            />
           </Paper>
           </Stack>
         )}

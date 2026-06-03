@@ -49,8 +49,10 @@ def list_alerts(
     q: str | None = None,
     from_: Annotated[datetime | None, Query(alias="from")] = None,
     to: datetime | None = None,
-    limit: int = Query(default=50, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    limit: int | None = Query(default=None, ge=1, le=200),
+    offset: int | None = Query(default=None, ge=0),
 ) -> AlertListResponse:
     query = db.query(Alert).join(Device, Alert.device_id == Device.device_id).filter(
         Alert.company == current_user.company
@@ -83,13 +85,23 @@ def list_alerts(
         )
 
     total = query.count()
-    alerts = query.order_by(Alert.triggered_at_utc.desc()).offset(offset).limit(limit).all()
+    effective_page_size = limit if limit is not None else page_size
+    effective_offset = offset if offset is not None else (page - 1) * page_size
+    effective_page = (effective_offset // effective_page_size) + 1
+    alerts = (
+        query.order_by(Alert.triggered_at_utc.desc())
+        .offset(effective_offset)
+        .limit(effective_page_size)
+        .all()
+    )
     summary = build_company_summary(db, current_user.company)
 
     return AlertListResponse(
         items=[alert_to_list_item(db, alert) for alert in alerts],
         total=total,
         summary=summary,
+        page=effective_page,
+        page_size=effective_page_size,
     )
 
 

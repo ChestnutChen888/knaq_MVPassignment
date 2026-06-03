@@ -25,6 +25,8 @@ function buildAlertQuery(params?: GetAlertsParams): string {
   if (params.q) search.set("q", params.q);
   if (params.from) search.set("from", params.from);
   if (params.to) search.set("to", params.to);
+  if (params.page) search.set("page", String(params.page));
+  if (params.page_size) search.set("page_size", String(params.page_size));
 
   const query = search.toString();
   return query ? `?${query}` : "";

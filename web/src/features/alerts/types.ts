@@ -40,6 +40,8 @@ export type AlertListResponse = {
   items: AlertListItem[];
   total: number;
   summary: AlertSummary;
+  page: number;
+  page_size: number;
 };
 
 export type GetAlertsParams = {
@@ -50,6 +52,8 @@ export type GetAlertsParams = {
   q?: string;
   from?: string;
   to?: string;
+  page?: number;
+  page_size?: number;
 };
 
 export type TimelineEntry = {

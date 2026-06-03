@@ -49,6 +49,24 @@ def main() -> None:
         f"summary={alerts['summary']}",
     )
 
+    paged_response = client.get(
+        "/alerts",
+        headers=HEADERS,
+        params={"page": 1, "page_size": 5},
+    )
+    check("GET /alerts supports page pagination", paged_response.status_code == 200, f"status={paged_response.status_code}")
+    paged = paged_response.json()
+    check(
+        "paginated alerts respect page_size",
+        len(paged["items"]) <= 5 and paged["page"] == 1 and paged["page_size"] == 5,
+        f"items={len(paged['items'])}, page={paged.get('page')}, page_size={paged.get('page_size')}",
+    )
+    check(
+        "paginated alerts keep total count",
+        paged["total"] == alerts["total"],
+        f"page_total={paged['total']}, total={alerts['total']}",
+    )
+
     new_alert = next((item for item in alerts["items"] if item["status"] == "new"), None)
     check("has a new alert for workflow test", new_alert is not None)
     if new_alert is None:
