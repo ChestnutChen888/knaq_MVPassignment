@@ -23,6 +23,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { CurrentUserBadge } from "@/components/CurrentUserBadge";
 import {
   useAcknowledgeAlertMutation,
   useGetAlertsQuery,
@@ -119,13 +120,25 @@ export default function AlertQueuePage() {
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       <Stack spacing={3}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800 }}>
-            Alert Queue
-          </Typography>
-          <Typography color="text.secondary">
-            Triage active equipment alerts, assign owners, and track resolution.
-          </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: 2,
+            flexDirection: { xs: "column", md: "row" },
+          }}
+        >
+          <Box>
+            <Typography variant="h4" sx={{ fontWeight: 800 }}>
+              Alert Queue
+            </Typography>
+            <Typography color="text.secondary">
+              Triage active equipment alerts, assign owners, and track resolution.
+            </Typography>
+          </Box>
+
+          <CurrentUserBadge />
         </Box>
 
         <Paper sx={{ p: 2 }}>
