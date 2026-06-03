@@ -1,0 +1,9 @@
+.git
+.gitignore
+api/dev.db
+api/__pycache__
+api/app/__pycache__
+web/.next
+web/node_modules
+web/.env.local
+*.pyc
