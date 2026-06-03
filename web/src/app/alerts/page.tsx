@@ -30,7 +30,12 @@ import {
   useAcknowledgeAlertMutation,
   useGetAlertsQuery,
 } from "@/features/alerts/api";
-import type { AlertSeverity, AlertStatus } from "@/features/alerts/types";
+import type {
+  AlertSeverity,
+  AlertSortBy,
+  AlertStatus,
+  SortOrder,
+} from "@/features/alerts/types";
 
 dayjs.extend(relativeTime);
 
@@ -43,6 +48,16 @@ const statusOptions: Array<AlertStatus | "all"> = [
 ];
 
 const severityOptions: AlertSeverity[] = ["critical", "warning", "info"];
+
+type SortValue = `${AlertSortBy}:${SortOrder}`;
+
+const sortOptions: Array<{ value: SortValue; label: string }> = [
+  { value: "triggered_at:desc", label: "Newest first" },
+  { value: "triggered_at:asc", label: "Oldest first" },
+  { value: "severity:desc", label: "Severity high first" },
+  { value: "severity:asc", label: "Severity low first" },
+  { value: "status:asc", label: "Status workflow" },
+];
 
 function getSeverityColor(severity: AlertSeverity) {
   if (severity === "critical") return "error";
@@ -66,6 +81,8 @@ export default function AlertQueuePage() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [sortValue, setSortValue] = useState<SortValue>("triggered_at:desc");
+  const [sortBy, sortOrder] = sortValue.split(":") as [AlertSortBy, SortOrder];
 
   const queryParams = useMemo(
     () => ({
@@ -74,8 +91,10 @@ export default function AlertQueuePage() {
       ...(search.trim() ? { q: search.trim() } : {}),
       page: page + 1,
       page_size: pageSize,
+      sort_by: sortBy,
+      sort_order: sortOrder,
     }),
-    [statusFilter, severityFilter, search, page, pageSize],
+    [statusFilter, severityFilter, search, page, pageSize, sortBy, sortOrder],
   );
 
   const {
@@ -235,6 +254,25 @@ export default function AlertQueuePage() {
                 {severityOptions.map((severity) => (
                   <MenuItem key={severity} value={severity}>
                     {severity}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl sx={{ minWidth: 220 }}>
+              <InputLabel id="sort-alerts-label">Sort</InputLabel>
+              <Select
+                labelId="sort-alerts-label"
+                value={sortValue}
+                label="Sort"
+                onChange={(event) => {
+                  setSortValue(event.target.value as SortValue);
+                  resetPagination();
+                }}
+              >
+                {sortOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
                   </MenuItem>
                 ))}
               </Select>

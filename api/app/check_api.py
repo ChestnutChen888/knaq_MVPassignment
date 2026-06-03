@@ -66,6 +66,23 @@ def main() -> None:
         paged["total"] == alerts["total"],
         f"page_total={paged['total']}, total={alerts['total']}",
     )
+    severity_sorted_response = client.get(
+        "/alerts",
+        headers=HEADERS,
+        params={"page": 1, "page_size": 5, "sort_by": "severity", "sort_order": "desc"},
+    )
+    check(
+        "GET /alerts supports severity sorting",
+        severity_sorted_response.status_code == 200,
+        f"status={severity_sorted_response.status_code}",
+    )
+    severity_sorted = severity_sorted_response.json()["items"]
+    if severity_sorted:
+        check(
+            "severity sorting puts critical alerts first",
+            severity_sorted[0]["severity"] == "critical",
+            f"first_severity={severity_sorted[0]['severity']}",
+        )
 
     new_alert = next((item for item in alerts["items"] if item["status"] == "new"), None)
     check("has a new alert for workflow test", new_alert is not None)

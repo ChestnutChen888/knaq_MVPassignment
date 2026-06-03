@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import or_
+from sqlalchemy import case, or_
 from sqlalchemy.orm import Session
 
 from app.api_utils import get_company_alert_or_404, timeline_to_response, utc_iso
@@ -53,6 +53,8 @@ def list_alerts(
     page_size: int = Query(default=20, ge=1, le=100),
     limit: int | None = Query(default=None, ge=1, le=200),
     offset: int | None = Query(default=None, ge=0),
+    sort_by: str = Query(default="triggered_at", pattern="^(triggered_at|severity|status)$"),
+    sort_order: str = Query(default="desc", pattern="^(asc|desc)$"),
 ) -> AlertListResponse:
     query = db.query(Alert).join(Device, Alert.device_id == Device.device_id).filter(
         Alert.company == current_user.company
@@ -88,8 +90,9 @@ def list_alerts(
     effective_page_size = limit if limit is not None else page_size
     effective_offset = offset if offset is not None else (page - 1) * page_size
     effective_page = (effective_offset // effective_page_size) + 1
+    query = apply_alert_sort(query, sort_by, sort_order)
     alerts = (
-        query.order_by(Alert.triggered_at_utc.desc())
+        query
         .offset(effective_offset)
         .limit(effective_page_size)
         .all()
@@ -103,6 +106,31 @@ def list_alerts(
         page=effective_page,
         page_size=effective_page_size,
     )
+
+
+def apply_alert_sort(query, sort_by: str, sort_order: str):
+    descending = sort_order == "desc"
+
+    if sort_by == "severity":
+        sort_expression = case(
+            (Alert.severity == "critical", 3),
+            (Alert.severity == "warning", 2),
+            (Alert.severity == "info", 1),
+            else_=0,
+        )
+    elif sort_by == "status":
+        sort_expression = case(
+            (Alert.status == "new", 1),
+            (Alert.status == "acknowledged", 2),
+            (Alert.status == "resolved", 3),
+            (Alert.status == "dismissed", 4),
+            else_=0,
+        )
+    else:
+        sort_expression = Alert.triggered_at_utc
+
+    primary_order = sort_expression.desc() if descending else sort_expression.asc()
+    return query.order_by(primary_order, Alert.triggered_at_utc.desc(), Alert.id.asc())
 
 
 @router.get("/{alert_id}", response_model=AlertDetailResponse)

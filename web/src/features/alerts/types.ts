@@ -9,6 +9,9 @@ export type ResolutionType =
   | "deferred"
   | "cannot_reproduce";
 
+export type AlertSortBy = "triggered_at" | "severity" | "status";
+export type SortOrder = "asc" | "desc";
+
 export type User = {
   id: string;
   name: string;
@@ -54,6 +57,8 @@ export type GetAlertsParams = {
   to?: string;
   page?: number;
   page_size?: number;
+  sort_by?: AlertSortBy;
+  sort_order?: SortOrder;
 };
 
 export type TimelineEntry = {
