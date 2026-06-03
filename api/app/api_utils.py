@@ -14,7 +14,11 @@ UTC = ZoneInfo("UTC")
 def utc_iso(value: datetime | None) -> str | None:
     if value is None:
         return None
-    return value.replace(tzinfo=UTC).isoformat().replace("+00:00", "Z")
+    if value.tzinfo is None:
+        utc_value = value.replace(tzinfo=UTC)
+    else:
+        utc_value = value.astimezone(UTC)
+    return utc_value.isoformat().replace("+00:00", "Z")
 
 
 def local_to_utc_naive(value: str, timezone_name: str) -> datetime:
@@ -35,7 +39,11 @@ def local_to_utc_naive(value: str, timezone_name: str) -> datetime:
 
 
 def utc_naive_to_local_iso(value: datetime, timezone_name: str) -> str:
-    return value.replace(tzinfo=UTC).astimezone(ZoneInfo(timezone_name)).isoformat()
+    if value.tzinfo is None:
+        utc_value = value.replace(tzinfo=UTC)
+    else:
+        utc_value = value.astimezone(UTC)
+    return utc_value.astimezone(ZoneInfo(timezone_name)).isoformat()
 
 
 def json_text_to_dict(value: str | None) -> dict:

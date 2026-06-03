@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -12,6 +12,10 @@ from app.utils import to_json_text
 TERMINAL_STATUSES = {"resolved", "dismissed"}
 
 
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
 def acknowledge_alert(db: Session, alert_id: int, current_user: User) -> Alert:
     alert = get_company_alert_or_404(db, alert_id, current_user)
     if alert.status != "new":
@@ -20,7 +24,7 @@ def acknowledge_alert(db: Session, alert_id: int, current_user: User) -> Alert:
             detail="Only new alerts can be acknowledged.",
         )
 
-    now = datetime.utcnow()
+    now = utc_now()
     alert.status = "acknowledged"
     alert.acknowledged_at_utc = now
     append_timeline(
@@ -63,7 +67,7 @@ def assign_alert(
     append_timeline(
         db=db,
         alert=alert,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         action="assigned",
         user_name=current_user.name,
         details={
@@ -91,7 +95,7 @@ def resolve_alert(
             detail="Only acknowledged alerts can be resolved.",
         )
 
-    now = datetime.utcnow()
+    now = utc_now()
     alert.status = "resolved"
     alert.resolved_at_utc = now
     alert.resolution_type = payload.resolution_type
@@ -121,7 +125,7 @@ def add_note(db: Session, alert_id: int, note: str, current_user: User) -> Alert
     append_timeline(
         db=db,
         alert=alert,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         action="note_added",
         user_name=current_user.name,
         note=note,

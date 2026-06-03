@@ -1,8 +1,12 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
 
 from app.database import Base
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class User(Base):
@@ -14,7 +18,7 @@ class User(Base):
     role = Column(String, nullable=False)
     company = Column(String, nullable=False, index=True)
     token = Column(String, unique=True, nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
 
 
 class Device(Base):
@@ -30,7 +34,7 @@ class Device(Base):
     floor_count = Column(Integer, nullable=True)
     reading_types_json = Column(Text, nullable=False)
     alert_thresholds_json = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
 
 
 class RawMessage(Base):
@@ -44,7 +48,7 @@ class RawMessage(Base):
     payload_json = Column(Text, nullable=False)
     is_valid = Column(Boolean, nullable=False, default=True)
     invalid_reason = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
 
 
 class Reading(Base):
@@ -60,7 +64,7 @@ class Reading(Base):
     threshold_value = Column(Float, nullable=True)
     threshold_direction = Column(String, nullable=True)
     source_raw_message_id = Column(Integer, ForeignKey("raw_messages.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
 
 
 class Alert(Base):
@@ -87,8 +91,8 @@ class Alert(Base):
     resolution_preventive_measures = Column(Text, nullable=True)
     resolution_time_spent_minutes = Column(Integer, nullable=True)
     source_raw_message_id = Column(Integer, ForeignKey("raw_messages.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
 
 class AlertTimeline(Base):
@@ -102,4 +106,4 @@ class AlertTimeline(Base):
     source_raw_message_id = Column(Integer, ForeignKey("raw_messages.id"), nullable=True, index=True)
     details_json = Column(Text, nullable=True)
     note = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
