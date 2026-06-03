@@ -62,7 +62,7 @@ def get_device_readings(
         db.query(Reading)
         .filter(Reading.device_id == device.device_id)
         .filter(Reading.timestamp_utc >= start_utc)
-        .filter(Reading.timestamp_utc <= end_utc)
+        .filter(Reading.timestamp_utc < end_utc)
     )
     if breached_only:
         query = query.filter(Reading.breached_threshold.is_(True))
