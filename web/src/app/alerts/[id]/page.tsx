@@ -25,9 +25,12 @@ import dayjs from "dayjs";
 import { useFormik } from "formik";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useState } from "react";
 import * as Yup from "yup";
 
 import { CurrentUserBadge } from "@/components/CurrentUserBadge";
+import { AssignAlertDialog } from "@/features/alerts/components/AssignAlertDialog";
+import { ResolveAlertDialog } from "@/features/alerts/components/ResolveAlertDialog";
 import {
   useAcknowledgeAlertMutation,
   useAddNoteMutation,
@@ -57,6 +60,8 @@ function formatAction(action: string): string {
 export default function AlertDetailPage() {
   const params = useParams<{ id: string }>();
   const alertId = Number(params.id);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
 
   const {
     data: alertDetail,
@@ -236,7 +241,10 @@ export default function AlertDetailPage() {
                       >
                         Acknowledge
                       </Button>
-                      <Button variant="outlined" disabled>
+                      <Button
+                        variant="outlined"
+                        onClick={() => setAssignDialogOpen(true)}
+                      >
                         Assign
                       </Button>
                     </>
@@ -244,10 +252,16 @@ export default function AlertDetailPage() {
 
                   {alertDetail.status === "acknowledged" && (
                     <>
-                      <Button variant="contained" disabled>
+                      <Button
+                        variant="contained"
+                        onClick={() => setResolveDialogOpen(true)}
+                      >
                         Resolve
                       </Button>
-                      <Button variant="outlined" disabled>
+                      <Button
+                        variant="outlined"
+                        onClick={() => setAssignDialogOpen(true)}
+                      >
                         Assign
                       </Button>
                     </>
@@ -327,7 +341,15 @@ export default function AlertDetailPage() {
                     </Stack>
                   )}
 
-                  <Button sx={{ mt: 2 }} variant="outlined" disabled>
+                  <Button
+                    sx={{ mt: 2 }}
+                    variant="outlined"
+                    disabled={
+                      alertDetail.status === "resolved" ||
+                      alertDetail.status === "dismissed"
+                    }
+                    onClick={() => setAssignDialogOpen(true)}
+                  >
                     Change assignment
                   </Button>
                 </CardContent>
@@ -479,6 +501,19 @@ export default function AlertDetailPage() {
                 </Stack>
               </CardContent>
             </Card>
+
+            <AssignAlertDialog
+              open={assignDialogOpen}
+              alertId={alertDetail.id}
+              currentAssigneeId={alertDetail.assigned_to?.id ?? null}
+              onClose={() => setAssignDialogOpen(false)}
+            />
+
+            <ResolveAlertDialog
+              open={resolveDialogOpen}
+              alertId={alertDetail.id}
+              onClose={() => setResolveDialogOpen(false)}
+            />
           </>
         )}
       </Stack>

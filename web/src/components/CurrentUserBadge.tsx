@@ -3,6 +3,7 @@
 import { Avatar, Box, Chip, Stack, Typography } from "@mui/material";
 
 import { CURRENT_USER } from "@/lib/config";
+import { ThemeModeToggle } from "./ThemeModeToggle";
 
 function getInitials(name: string): string {
   return name
@@ -24,6 +25,8 @@ export function CurrentUserBadge() {
         justifyContent: { xs: "flex-start", sm: "flex-end" },
       }}
     >
+      <ThemeModeToggle />
+
       <Avatar sx={{ width: 36, height: 36, fontSize: 14 }}>
         {getInitials(CURRENT_USER.name)}
       </Avatar>
