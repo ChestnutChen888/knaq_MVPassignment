@@ -1,0 +1,349 @@
+"use client";
+
+import {
+  Alert as MuiAlert,
+  Avatar,
+  Box,
+  Button,
+  Chip,
+  Container,
+  FormControl,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import type { SelectChangeEvent } from "@mui/material/Select";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+import {
+  useAcknowledgeAlertMutation,
+  useGetAlertsQuery,
+} from "@/features/alerts/api";
+import type { AlertSeverity, AlertStatus } from "@/features/alerts/types";
+
+dayjs.extend(relativeTime);
+
+const statusOptions: Array<AlertStatus | "all"> = [
+  "all",
+  "new",
+  "acknowledged",
+  "resolved",
+  "dismissed",
+];
+
+const severityOptions: AlertSeverity[] = ["critical", "warning", "info"];
+
+function getSeverityColor(severity: AlertSeverity) {
+  if (severity === "critical") return "error";
+  if (severity === "warning") return "warning";
+  return "info";
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+export default function AlertQueuePage() {
+  const [statusFilter, setStatusFilter] = useState<AlertStatus | "all">("all");
+  const [severityFilter, setSeverityFilter] = useState<AlertSeverity[]>([]);
+  const [search, setSearch] = useState("");
+
+  const queryParams = useMemo(
+    () => ({
+      ...(statusFilter !== "all" ? { status: [statusFilter] } : {}),
+      ...(severityFilter.length > 0 ? { severity: severityFilter } : {}),
+      ...(search.trim() ? { q: search.trim() } : {}),
+    }),
+    [statusFilter, severityFilter, search],
+  );
+
+  const {
+    data: summaryData,
+    isLoading: isSummaryLoading,
+    isError: isSummaryError,
+    refetch: refetchSummary,
+  } = useGetAlertsQuery();
+
+  const { data, isLoading, isFetching, isError, refetch } =
+    useGetAlertsQuery(queryParams);
+
+  const [acknowledgeAlert, { isLoading: isAcknowledging }] =
+    useAcknowledgeAlertMutation();
+
+  const alerts = data?.items ?? [];
+  const summary = summaryData?.summary ?? {
+    new: 0,
+    acknowledged: 0,
+    resolved: 0,
+    dismissed: 0,
+  };
+  const total = summaryData?.total ?? 0;
+
+  const handleRefresh = () => {
+    refetch();
+    refetchSummary();
+  };
+
+  const handleSeverityChange = (event: SelectChangeEvent<AlertSeverity[]>) => {
+    const value = event.target.value;
+    setSeverityFilter(
+      typeof value === "string"
+        ? (value.split(",").filter(Boolean) as AlertSeverity[])
+        : value,
+    );
+  };
+
+  const handleAcknowledge = async (alertId: number) => {
+    try {
+      await acknowledgeAlert(alertId).unwrap();
+    } catch {
+      window.alert(
+        "Failed to acknowledge alert. The alert may have changed on the server.",
+      );
+    }
+  };
+
+  return (
+    <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Stack spacing={3}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 800 }}>
+            Alert Queue
+          </Typography>
+          <Typography color="text.secondary">
+            Triage active equipment alerts, assign owners, and track resolution.
+          </Typography>
+        </Box>
+
+        <Paper sx={{ p: 2 }}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+            {statusOptions.map((status) => {
+              const count = status === "all" ? total : summary[status];
+              return (
+                <Chip
+                  key={status}
+                  label={`${status === "all" ? "All" : status} (${count})`}
+                  color={statusFilter === status ? "primary" : "default"}
+                  variant={statusFilter === status ? "filled" : "outlined"}
+                  onClick={() => setStatusFilter(status)}
+                  sx={{ textTransform: "capitalize" }}
+                />
+              );
+            })}
+          </Box>
+        </Paper>
+
+        <Paper sx={{ p: 2 }}>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={2}
+            sx={{ alignItems: { xs: "stretch", md: "center" } }}
+          >
+            <TextField
+              label="Search by alert, device, or type"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              fullWidth
+            />
+
+            <FormControl sx={{ minWidth: 220 }}>
+              <InputLabel id="severity-filter-label">Severity</InputLabel>
+              <Select
+                labelId="severity-filter-label"
+                multiple
+                value={severityFilter}
+                label="Severity"
+                onChange={handleSeverityChange}
+                renderValue={(selected) => selected.join(", ")}
+              >
+                {severityOptions.map((severity) => (
+                  <MenuItem key={severity} value={severity}>
+                    {severity}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <Button variant="outlined" onClick={handleRefresh}>
+              Refresh
+            </Button>
+          </Stack>
+        </Paper>
+
+        {(isSummaryLoading || isLoading || isFetching) && <LinearProgress />}
+
+        {(isError || isSummaryError) && (
+          <MuiAlert
+            severity="error"
+            action={
+              <Button color="inherit" size="small" onClick={handleRefresh}>
+                Retry
+              </Button>
+            }
+          >
+            Failed to load alerts. Make sure the backend API is running.
+          </MuiAlert>
+        )}
+
+        {!isLoading && !isError && !isSummaryError && alerts.length === 0 && (
+          <Paper sx={{ p: 5, textAlign: "center" }}>
+            <Typography variant="h6">No alerts found</Typography>
+            <Typography color="text.secondary">
+              Try changing the filters or check back later.
+            </Typography>
+          </Paper>
+        )}
+
+        {!isLoading && !isError && !isSummaryError && alerts.length > 0 && (
+          <Paper sx={{ overflow: "hidden" }}>
+            <Box component="table" sx={{ width: "100%", borderCollapse: "collapse" }}>
+              <Box component="thead" sx={{ bgcolor: "action.hover" }}>
+                <Box component="tr">
+                  {[
+                    "Severity",
+                    "Alert",
+                    "Device",
+                    "Triggered",
+                    "Status",
+                    "Assignee",
+                    "Actions",
+                  ].map((header) => (
+                    <Box
+                      key={header}
+                      component="th"
+                      sx={{
+                        p: 2,
+                        textAlign: "left",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: "text.secondary",
+                      }}
+                    >
+                      {header}
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+
+              <Box component="tbody">
+                {alerts.map((alertItem) => (
+                  <Box
+                    key={alertItem.id}
+                    component="tr"
+                    sx={{
+                      borderTop: "1px solid",
+                      borderColor: "divider",
+                      "&:hover": { bgcolor: "action.hover" },
+                    }}
+                  >
+                    <Box component="td" sx={{ p: 2 }}>
+                      <Chip
+                        size="small"
+                        label={alertItem.severity}
+                        color={getSeverityColor(alertItem.severity)}
+                        sx={{ textTransform: "capitalize" }}
+                      />
+                    </Box>
+
+                    <Box component="td" sx={{ p: 2, minWidth: 260 }}>
+                      <Typography sx={{ fontWeight: 700 }}>{alertItem.title}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {alertItem.alert_type}
+                      </Typography>
+                      {alertItem.reading_name && (
+                        <Typography variant="body2" color="text.secondary">
+                          {alertItem.reading_name}: {alertItem.reading_value ?? "-"} /
+                          threshold {alertItem.threshold_value ?? "-"}
+                        </Typography>
+                      )}
+                    </Box>
+
+                    <Box component="td" sx={{ p: 2 }}>
+                      <Typography sx={{ fontWeight: 600 }}>{alertItem.device_name}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {alertItem.device_id} / {alertItem.device_location}
+                      </Typography>
+                    </Box>
+
+                    <Box component="td" sx={{ p: 2 }}>
+                      <Typography>{dayjs(alertItem.triggered_at).fromNow()}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {dayjs(alertItem.triggered_at).format("MMM D, HH:mm")}
+                      </Typography>
+                    </Box>
+
+                    <Box component="td" sx={{ p: 2 }}>
+                      <Chip
+                        size="small"
+                        label={alertItem.status}
+                        variant="outlined"
+                        sx={{ textTransform: "capitalize" }}
+                      />
+                    </Box>
+
+                    <Box component="td" sx={{ p: 2 }}>
+                      {alertItem.assigned_to ? (
+                        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                          <Avatar sx={{ width: 28, height: 28, fontSize: 12 }}>
+                            {getInitials(alertItem.assigned_to.name)}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {alertItem.assigned_to.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {alertItem.assigned_to.role}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      ) : (
+                        <Typography color="text.secondary">Unassigned</Typography>
+                      )}
+                    </Box>
+
+                    <Box component="td" sx={{ p: 2 }}>
+                      <Stack direction="row" spacing={1}>
+                        {alertItem.status === "new" && (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            disabled={isAcknowledging}
+                            onClick={() => handleAcknowledge(alertItem.id)}
+                          >
+                            Acknowledge
+                          </Button>
+                        )}
+
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          component={Link}
+                          href={`/alerts/${alertItem.id}`}
+                        >
+                          View Detail
+                        </Button>
+                      </Stack>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          </Paper>
+        )}
+      </Stack>
+    </Container>
+  );
+}
