@@ -44,6 +44,7 @@ def main() -> None:
     check_message_types(runner)
     check_invalid_messages(runner)
     check_duplicates(runner)
+    check_dedupe_constraint(runner)
     check_dedupe_input_order(runner)
     check_readings(runner)
     check_threshold_logic(runner)
@@ -137,6 +138,23 @@ def check_duplicates(runner: CheckRunner) -> None:
         """
     )
     runner.pass_fail("no duplicate dedupe_key rows", len(duplicates) == 0, f"duplicates={len(duplicates)}")
+    print()
+
+
+def check_dedupe_constraint(runner: CheckRunner) -> None:
+    print("Dedupe database constraint")
+    indexes = runner.rows("PRAGMA index_list('raw_messages')")
+    has_unique_dedupe_index = False
+    for index in indexes:
+        if not bool(index["unique"]):
+            continue
+        columns = runner.rows(f"PRAGMA index_info('{index['name']}')")
+        column_names = {column["name"] for column in columns}
+        if column_names == {"dedupe_key"}:
+            has_unique_dedupe_index = True
+            break
+
+    runner.pass_fail("dedupe_key has unique database index", has_unique_dedupe_index)
     print()
 
 

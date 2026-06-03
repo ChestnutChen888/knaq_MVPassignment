@@ -166,6 +166,24 @@ def main() -> None:
         if entry["action"] == "note_added" and entry["note"] == "Smoke test note after resolution."
     ]
     check("add note appends note_added timeline", len(note_entries) == 1, f"matches={len(note_entries)}")
+    timeline_actions = [entry["action"] for entry in noted["timeline"]]
+    expected_workflow_actions = ["created", "acknowledged", "assigned", "resolved", "note_added"]
+    check(
+        "workflow timeline contains required actions",
+        all(action in timeline_actions for action in expected_workflow_actions),
+        f"actions={timeline_actions}",
+    )
+    action_positions = [timeline_actions.index(action) for action in expected_workflow_actions]
+    check(
+        "workflow timeline actions are ordered",
+        action_positions == sorted(action_positions),
+        f"positions={action_positions}",
+    )
+    timeline_timestamps = [datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00")) for entry in noted["timeline"]]
+    check(
+        "timeline timestamps are sorted",
+        timeline_timestamps == sorted(timeline_timestamps),
+    )
 
     assign_resolved = client.post(
         f"/alerts/{first_alert['id']}/assign",
