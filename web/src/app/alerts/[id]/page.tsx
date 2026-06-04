@@ -10,6 +10,11 @@ import {
   Chip,
   Container,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   LinearProgress,
   Paper,
   Stack,
@@ -40,10 +45,11 @@ import {
 } from "@/features/alerts/api";
 import type { AlertSeverity } from "@/features/alerts/types";
 
+type ConfirmAction = "dismiss" | "reopen";
+
 function getSeverityColor(severity: AlertSeverity) {
   if (severity === "critical") return "error";
-  if (severity === "warning") return "warning";
-  return "info";
+  return "warning";
 }
 
 function getInitials(name: string): string {
@@ -114,6 +120,7 @@ export default function AlertDetailPage() {
   const alertId = Number(params.id);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
 
   const {
     data: alertDetail,
@@ -188,6 +195,16 @@ export default function AlertDetailPage() {
     } catch {
       window.alert("Failed to reopen alert. It may have changed on the server.");
     }
+  }
+
+  async function handleConfirmAction() {
+    if (confirmAction === "dismiss") {
+      await handleDismiss();
+    }
+    if (confirmAction === "reopen") {
+      await handleReopen();
+    }
+    setConfirmAction(null);
   }
 
   if (Number.isNaN(alertId)) {
@@ -326,7 +343,7 @@ export default function AlertDetailPage() {
                         variant="outlined"
                         color="warning"
                         disabled={isDismissing}
-                        onClick={handleDismiss}
+                        onClick={() => setConfirmAction("dismiss")}
                       >
                         Dismiss
                       </Button>
@@ -351,7 +368,7 @@ export default function AlertDetailPage() {
                         variant="outlined"
                         color="warning"
                         disabled={isDismissing}
-                        onClick={handleDismiss}
+                        onClick={() => setConfirmAction("dismiss")}
                       >
                         Dismiss
                       </Button>
@@ -365,7 +382,7 @@ export default function AlertDetailPage() {
                       <Button
                         variant="outlined"
                         disabled={isReopening}
-                        onClick={handleReopen}
+                        onClick={() => setConfirmAction("reopen")}
                       >
                         Reopen
                       </Button>
@@ -630,6 +647,35 @@ export default function AlertDetailPage() {
               alertId={alertDetail.id}
               onClose={() => setResolveDialogOpen(false)}
             />
+
+            <Dialog
+              open={confirmAction !== null}
+              onClose={() => setConfirmAction(null)}
+              fullWidth
+              maxWidth="xs"
+            >
+              <DialogTitle>
+                {confirmAction === "dismiss" ? "Dismiss Alert" : "Reopen Alert"}
+              </DialogTitle>
+              <DialogContent>
+                <DialogContentText>
+                  {confirmAction === "dismiss"
+                    ? "This alert will leave the active queue. You can reopen it later if more work is needed."
+                    : "This alert will return to acknowledged status so the team can continue triage."}
+                </DialogContentText>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setConfirmAction(null)}>Cancel</Button>
+                <Button
+                  variant="contained"
+                  color={confirmAction === "dismiss" ? "warning" : "primary"}
+                  disabled={isDismissing || isReopening}
+                  onClick={handleConfirmAction}
+                >
+                  Confirm
+                </Button>
+              </DialogActions>
+            </Dialog>
           </>
         )}
       </Stack>

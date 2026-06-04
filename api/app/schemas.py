@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 AlertStatus = Literal["new", "acknowledged", "resolved", "dismissed"]
-AlertSeverity = Literal["info", "warning", "critical"]
+AlertSeverity = Literal["warning", "critical"]
 ResolutionType = Literal["fixed", "false_alarm", "known_issue", "deferred", "cannot_reproduce"]
 
 

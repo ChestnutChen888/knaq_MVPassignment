@@ -115,7 +115,6 @@ def apply_alert_sort(query, sort_by: str, sort_order: str):
         sort_expression = case(
             (Alert.severity == "critical", 3),
             (Alert.severity == "warning", 2),
-            (Alert.severity == "info", 1),
             else_=0,
         )
     elif sort_by == "status":

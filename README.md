@@ -220,6 +220,8 @@ resolved / dismissed
 
 Dismiss is used when the alert should leave the active queue without resolution work. Reopen is used when a resolved or dismissed alert needs more work. After reopen, the alert returns to `acknowledged`, so it can be assigned, updated with notes, and resolved again.
 
+Dismiss and reopen both require a confirmation dialog in the frontend before the mutation is sent to the backend.
+
 Every action is synced to the timeline. The `alerts` table stores the latest state, and the `alert_timeline` table stores the full processing history.
 
 The backend is the source of truth for all status transitions. The frontend renders contextual action buttons based on the current status, but invalid transitions are rejected by the API with a `409 Conflict` response.

@@ -31,6 +31,7 @@ import {
   useGetAlertsQuery,
 } from "@/features/alerts/api";
 import type {
+  AlertListItem,
   AlertSeverity,
   AlertSortBy,
   AlertStatus,
@@ -47,7 +48,7 @@ const statusOptions: Array<AlertStatus | "all"> = [
   "dismissed",
 ];
 
-const severityOptions: AlertSeverity[] = ["critical", "warning", "info"];
+const severityOptions: AlertSeverity[] = ["critical", "warning"];
 
 type SortValue = `${AlertSortBy}:${SortOrder}`;
 
@@ -61,8 +62,7 @@ const sortOptions: Array<{ value: SortValue; label: string }> = [
 
 function getSeverityColor(severity: AlertSeverity) {
   if (severity === "critical") return "error";
-  if (severity === "warning") return "warning";
-  return "info";
+  return "warning";
 }
 
 function getInitials(name: string): string {
@@ -72,6 +72,14 @@ function getInitials(name: string): string {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+function getAlertQueueTitle(alertItem: AlertListItem): string {
+  const deviceSuffix = ` on ${alertItem.device_name}`;
+  if (alertItem.title.endsWith(deviceSuffix)) {
+    return alertItem.title.slice(0, -deviceSuffix.length);
+  }
+  return alertItem.title;
 }
 
 export default function AlertQueuePage() {
@@ -405,16 +413,9 @@ export default function AlertQueuePage() {
                     </Box>
 
                     <Box component="td" sx={{ p: 2, minWidth: 260 }}>
-                      <Typography sx={{ fontWeight: 700 }}>{alertItem.title}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {alertItem.alert_type}
+                      <Typography sx={{ fontWeight: 700 }}>
+                        {getAlertQueueTitle(alertItem)}
                       </Typography>
-                      {alertItem.reading_name && (
-                        <Typography variant="body2" color="text.secondary">
-                          {alertItem.reading_name}: {alertItem.reading_value ?? "-"} /
-                          threshold {alertItem.threshold_value ?? "-"}
-                        </Typography>
-                      )}
                     </Box>
 
                     <Box component="td" sx={{ p: 2 }}>

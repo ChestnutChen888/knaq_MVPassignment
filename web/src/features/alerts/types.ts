@@ -1,6 +1,6 @@
 export type AlertStatus = "new" | "acknowledged" | "resolved" | "dismissed";
 
-export type AlertSeverity = "info" | "warning" | "critical";
+export type AlertSeverity = "warning" | "critical";
 
 export type ResolutionType =
   | "fixed"

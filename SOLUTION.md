@@ -217,6 +217,8 @@ dismissed -> reopened -> acknowledged
 
 Reopened alerts return to `acknowledged` because the team has already seen the alert, but it now needs more work.
 
+In the frontend, dismiss and reopen both show a confirmation dialog first. The mutation is only sent after the user confirms the action.
+
 Every successful mutation appends a timeline entry. The `alerts` table stores the current state, while `alert_timeline` stores the history.
 
 ---
