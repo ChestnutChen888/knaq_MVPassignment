@@ -38,6 +38,8 @@ Then open:
 - API docs: `http://localhost:8000/docs`
 - Health check: `http://localhost:8000/health`
 
+Chrome is recommended for the frontend UI. Safari works for most flows, but some table and layout spacing may look less polished.
+
 The API container seeds the SQLite database on startup. It loads devices, users, raw messages, readings, alerts, and timeline entries.
 
 To stop the services:
@@ -80,6 +82,8 @@ The web app runs at:
 ```text
 http://localhost:3000/alerts
 ```
+
+Chrome is recommended for the frontend UI. Safari works for most flows, but some table and layout spacing may look less polished.
 
 Create `web/.env.local` if needed:
 
